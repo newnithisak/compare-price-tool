@@ -83,8 +83,44 @@
         let currentLang = localStorage.getItem('lang') || 'th';
 
         const i18n = {
-            th: { error_unit: "หน่วยไม่ตรงกัน! กรุณาเลือกหน่วยประเภทเดียวกัน", subtitle: "เปรียบเทียบความคุ้มค่าต่อหน่วย", reset: "ล้างทั้งหมด", reset_conf: "ล้างข้อมูลทั้งหมด?", add: "+ เพิ่ม", calc: "คำนวณเลย", price: "ราคา (฿)", qty: "ปริมาณ", unit: "หน่วย", avg_unit: "เฉลี่ย:", avg_summary: "เฉลี่ยหน่วยละ", best: "🏆 คุ้มที่สุด", tie: "⚖️ ราคาเท่ากัน", item_placeholder: "รายการที่ ", unit_pcs: "ชิ้น", save_text: "คุณประหยัดเงินไปได้" },
-            en: { error_unit: "Units mismatch! Please select compatible units", subtitle: "Unit Price Comparison", reset: "Clear All", reset_conf: "Clear all data?", add: "+ Add", calc: "Calculate", price: "Price (฿)", qty: "Qty", unit: "Unit", avg_unit: "Avg:", avg_summary: "Avg/Unit", best: "🏆 Best Value", tie: "⚖️ Equal Value", item_placeholder: "Item ", unit_pcs: "pcs", save_text: "You save" }
+            th: { 
+                error_unit: "หน่วยไม่ตรงกัน! กรุณาเลือกประเภทเดียวกัน", 
+                subtitle: "เปรียบเทียบความคุ้มค่าต่อหน่วย", 
+                reset: "ล้างทั้งหมด", 
+                reset_conf: "ล้างข้อมูลทั้งหมด?", 
+                add: "+ เพิ่ม", 
+                calc: "คำนวณเลย", 
+                price: "ราคา (฿)", 
+                qty: "ปริมาณ", 
+                unit: "หน่วย", 
+                avg_unit: "เฉลี่ย:", 
+                avg_summary: "เฉลี่ยหน่วยละ", 
+                best: "🏆 คุ้มที่สุด", 
+                tie: "⚖️ ราคาเท่ากัน", 
+                item_placeholder: "รายการที่ ", 
+                unit_pcs: "ชิ้น", 
+                save_text: "คุณประหยัดเงินไปได้",
+                advice_equal: "💡 ปริมาณเท่ากัน! ซื้ออันที่ถูกกว่า ประหยัดไปได้"
+            },
+            en: { 
+                error_unit: "Units mismatch! Please select same category", 
+                subtitle: "Unit Price Comparison", 
+                reset: "Clear All", 
+                reset_conf: "Clear all data?", 
+                add: "+ Add", 
+                calc: "Calculate", 
+                price: "Price (฿)", 
+                qty: "Qty", 
+                unit: "Unit", 
+                avg_unit: "Avg:", 
+                avg_summary: "Avg/Unit", 
+                best: "🏆 Best Value", 
+                tie: "⚖️ Equal Value", 
+                item_placeholder: "Item ", 
+                unit_pcs: "pcs", 
+                save_text: "You save",
+                advice_equal: "💡 Same quantity! Pick the cheaper one and save"
+            }
         };
 
         function vibrate(ms = 20) { if (navigator.vibrate) navigator.vibrate(ms); }
@@ -104,22 +140,36 @@
             document.getElementById('text-add').innerText = t.add;
             document.getElementById('text-calc').innerText = t.calc;
             document.getElementById('text-avg').innerText = t.avg_summary;
-            document.getElementById('text-you-save').innerText = t.save_text;
+
+            const cards = document.querySelectorAll('.product-card');
+            cards.forEach(card => {
+                const id = card.id.split('-')[1];
+                const nameInput = document.getElementById(`name-${id}`);
+                if (nameInput) nameInput.placeholder = t.item_placeholder + id;
+                
+                const labels = card.querySelectorAll('label');
+                if (labels.length >= 3) {
+                    labels[0].innerText = t.price; labels[1].innerText = t.qty; labels[2].innerText = t.unit;
+                }
+
+                const unitSelect = document.getElementById(`unit-${id}`);
+                if (unitSelect) {
+                    unitSelect.querySelector('option[value="pcs"]').innerText = t.unit_pcs;
+                }
+                
+                const avgLabel = card.querySelector('.avg-label-text');
+                if (avgLabel) avgLabel.innerText = t.avg_unit;
+            });
         }
 
         function toggleDarkMode() {
             const html = document.documentElement;
-            const icon = document.getElementById('theme-icon');
             if (html.classList.contains('dark')) {
-                html.classList.remove('dark'); icon.innerText = "🌙"; localStorage.setItem('theme', 'light');
+                html.classList.remove('dark'); document.getElementById('theme-icon').innerText = "🌙";
             } else {
-                html.classList.add('dark'); icon.innerText = "☀️"; localStorage.setItem('theme', 'dark');
+                html.classList.add('dark'); document.getElementById('theme-icon').innerText = "☀️";
             }
             vibrate(10);
-        }
-
-        if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-            document.documentElement.classList.add('dark');
         }
 
         function addProduct() {
@@ -153,7 +203,7 @@
                 </div>
                 <div id="unit-display-${productCount}" class="mt-4 hidden">
                     <div class="flex justify-between items-end mb-1">
-                        <span class="text-[10px] text-slate-400 font-bold uppercase">${t.avg_unit}</span>
+                        <span class="avg-label-text text-[10px] text-slate-400 font-bold uppercase">${t.avg_unit}</span>
                         <span id="unit-val-${productCount}" class="text-sm font-bold text-blue-600 dark:text-blue-400">0.00</span>
                     </div>
                     <div class="price-bar-container"><div id="bar-${productCount}" class="price-bar-fill"></div></div>
@@ -163,7 +213,16 @@
         }
 
         function removeProduct(id) { vibrate(5); document.getElementById(`card-${id}`).remove(); calculateAll(); }
-        function resetAll() { if(confirm(i18n[currentLang].reset_conf)) { vibrate(40); document.getElementById('product-container').innerHTML = ''; document.getElementById('final-result').classList.add('hidden'); document.getElementById('unit-error').classList.add('hidden'); productCount = 0; addProduct(); addProduct(); } }
+        
+        function resetAll() { 
+            if(confirm(i18n[currentLang].reset_conf)) { 
+                vibrate(40); 
+                document.getElementById('product-container').innerHTML = ''; 
+                document.getElementById('final-result').classList.add('hidden'); 
+                document.getElementById('unit-error').classList.add('hidden'); 
+                productCount = 0; addProduct(); addProduct(); 
+            } 
+        }
 
         function calculateAll() {
             let products = [];
@@ -181,14 +240,10 @@
                 const price = parseFloat(document.getElementById(`price-${id}`).value);
                 const qty = parseFloat(document.getElementById(`qty-${id}`).value);
                 const unit = document.getElementById(`unit-${id}`).value;
-                
                 card.classList.remove('best-card', 'error-shake');
-                document.getElementById(`unit-display-${id}`).classList.add('hidden');
 
                 if (price > 0 && qty > 0) {
-                    const group = (unit === 'pcs') ? 'count' : 'measure';
-                    unitGroups.add(group);
-                    
+                    unitGroups.add(unit === 'pcs' ? 'count' : 'measure');
                     let baseQty = (unit === 'kg' || unit === 'l') ? qty * 1000 : qty;
                     const unitPrice = parseFloat((price / baseQty).toFixed(6));
                     products.push({ id, price, qty, unit, baseQty, unitPrice });
@@ -215,7 +270,7 @@
                 document.querySelector(`#card-${id} .price-bar-container`).style.display = 'block';
 
                 const bar = document.getElementById(`bar-${id}`);
-                const percentage = (p.unitPrice / maxPrice) * 100;
+                const percentage = maxPrice === 0 ? 0 : (p.unitPrice / maxPrice) * 100;
                 bar.style.width = percentage + "%";
                 bar.className = (p.unitPrice === bestPrice) ? "price-bar-fill bg-green-500" : "price-bar-fill bg-blue-500";
                 if (p.unitPrice === bestPrice) winners.push(id);
@@ -227,13 +282,23 @@
                 const t = i18n[currentLang];
                 document.getElementById('winner-price').innerText = bestPrice.toLocaleString(undefined, {maximumFractionDigits: 4});
                 
-                // ตรรกะการคำนวณส่วนที่ประหยัด (เทียบกับอันที่แพงที่สุด)
+                // ตรรกะ Savings + ฟังก์ชันแนะนำราคาต่ำกว่า
                 const savingsDiv = document.getElementById('savings-display');
                 if (products.length > 1 && maxPrice > bestPrice) {
                     const winnerProduct = products.find(p => p.id == winners[0]);
-                    const priceDifferencePerUnit = maxPrice - bestPrice;
-                    const totalSavings = priceDifferencePerUnit * winnerProduct.baseQty;
+                    const totalSavings = (maxPrice - bestPrice) * winnerProduct.baseQty;
                     
+                    // เช็คว่ามีรายการที่ปริมาณและหน่วยเท่ากันเป๊ะหรือไม่
+                    let hasIdenticalQty = false;
+                    for(let i=0; i<products.length; i++) {
+                        for(let j=i+1; j<products.length; j++) {
+                            if(products[i].qty === products[j].qty && products[i].unit === products[j].unit && products[i].price !== products[j].price) {
+                                hasIdenticalQty = true; break;
+                            }
+                        }
+                    }
+
+                    document.getElementById('text-you-save').innerText = hasIdenticalQty ? t.advice_equal : t.save_text;
                     document.getElementById('savings-amount').innerText = totalSavings.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
                     savingsDiv.classList.remove('hidden');
                 } else {
