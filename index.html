@@ -1,149 +1,66 @@
-<!DOCTYPE html>
-<html lang="th">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Price Compare Pro (Mobile)</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'Kanit', sans-serif; touch-action: manipulation; }
-        .best-card { border: 3px solid #10b981 !important; background-color: #f0fdf4 !important; transition: all 0.3s ease; }
-        /* ซ่อนลูกศรใน input number */
-        input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-    </style>
-</head>
-<body class="bg-slate-50 min-h-screen pb-20">
-
-    <div class="max-w-md mx-auto p-4">
-        <div class="flex justify-between items-center my-6">
-            <div>
-                <h1 class="text-2xl font-bold text-slate-800">เทียบราคา</h1>
-                <p class="text-sm text-slate-500">หาตัวที่คุ้มที่สุด</p>
-            </div>
-            <button onclick="resetAll()" class="text-red-500 text-sm font-medium bg-red-50 px-3 py-1 rounded-full">ล้างทั้งหมด</button>
-        </div>
-
-        <div id="product-container" class="space-y-4 mb-6">
-            </div>
-
-        <div class="fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t border-gray-200 flex gap-3">
-            <button onclick="addProduct()" class="flex-[1] bg-white border-2 border-blue-500 text-blue-500 font-bold py-3 rounded-2xl hover:bg-blue-50 transition-all">
-                + เพิ่ม
-            </button>
-            <button onclick="calculateAll()" class="flex-[2] bg-blue-600 text-white font-bold py-3 rounded-2xl shadow-lg shadow-blue-200 active:scale-95 transition-all">
-                คำนวณเลย
-            </button>
-        </div>
-
-        <div id="final-result" class="hidden mt-4 animate-bounce-short">
-            <div class="bg-green-600 text-white p-5 rounded-3xl shadow-xl text-center">
-                <p class="text-xs opacity-80">🔥 คุ้มค่าที่สุด:</p>
-                <h2 id="winner-name" class="text-xl font-bold my-1">-</h2>
-                <p class="text-md">เฉลี่ย <span id="winner-price" class="font-bold text-yellow-300">0.00</span> ฿/หน่วย</p>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        let productCount = 0;
-
-        function addProduct() {
-            productCount++;
-            const container = document.getElementById('product-container');
-            const div = document.createElement('div');
-            div.className = "product-card bg-white p-4 rounded-2xl shadow-sm border border-gray-100 relative transition-all";
-            div.id = `card-${productCount}`;
-            div.innerHTML = `
-                <div class="flex justify-between items-center mb-3">
-                    <input type="text" placeholder="ชื่อสินค้า ${productCount}" class="font-bold text-gray-700 focus:outline-none bg-transparent w-2/3" id="name-${productCount}">
-                    <button onclick="removeProduct(${productCount})" class="text-gray-300 hover:text-red-500">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                          <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-                        </svg>
-                    </button>
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-[10px] text-gray-400 mb-1 uppercase tracking-wider">ราคา (บาท)</label>
-                        <input type="number" inputmode="decimal" pattern="[0-9]*" step="any" placeholder="0.00" 
-                            class="input-price w-full p-3 bg-slate-50 rounded-xl focus:ring-2 focus:ring-blue-300 outline-none text-lg font-medium" 
-                            id="price-${productCount}">
-                    </div>
-                    <div>
-                        <label class="block text-[10px] text-gray-400 mb-1 uppercase tracking-wider">ปริมาณ</label>
-                        <input type="number" inputmode="decimal" pattern="[0-9]*" step="any" placeholder="1" 
-                            class="input-qty w-full p-3 bg-slate-50 rounded-xl focus:ring-2 focus:ring-blue-300 outline-none text-lg font-medium" 
-                            id="qty-${productCount}">
-                    </div>
-                </div>
-                <div id="unit-display-${productCount}" class="mt-2 text-right hidden">
-                    <span class="text-[10px] text-gray-400">เฉลี่ย: </span>
-                    <span class="text-sm font-bold text-blue-500" id="unit-val-${productCount}">0.00</span>
-                    <span class="text-[10px] text-gray-400">/ หน่วย</span>
-                </div>
-            `;
-            container.appendChild(div);
-        }
-
-        function removeProduct(id) {
-            document.getElementById(`card-${id}`).remove();
-            calculateAll();
-        }
-
-        function resetAll() {
-            if(confirm('ล้างข้อมูลทั้งหมด?')) {
-                document.getElementById('product-container').innerHTML = '';
-                document.getElementById('final-result').classList.add('hidden');
-                productCount = 0;
-                addProduct();
-                addProduct();
-            }
-        }
-
         function calculateAll() {
             let bestPrice = Infinity;
-            let winnerId = null;
-            let winnerNameText = "";
+            let winners = []; // เก็บ ID ของรายการที่ถูกที่สุด (รองรับกรณีเท่ากันหลายตัว)
 
             const cards = document.querySelectorAll('.product-card');
             
+            // 1. หาราคาที่ถูกที่สุดก่อน
             cards.forEach(card => {
                 const id = card.id.split('-')[1];
                 const price = parseFloat(document.getElementById(`price-${id}`).value);
                 const qty = parseFloat(document.getElementById(`qty-${id}`).value);
-                const name = document.getElementById(`name-${id}`).value || `สินค้าที่ ${id}`;
                 
                 card.classList.remove('best-card');
                 document.getElementById(`unit-display-${id}`).classList.add('hidden');
 
                 if (price > 0 && qty > 0) {
-                    const unitPrice = price / qty;
+                    const unitPrice = parseFloat((price / qty).toFixed(4)); // ปัดเศษเพื่อเทียบกันได้แม่นยำ
                     document.getElementById(`unit-val-${id}`).innerText = unitPrice.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 4});
                     document.getElementById(`unit-display-${id}`).classList.remove('hidden');
 
                     if (unitPrice < bestPrice) {
                         bestPrice = unitPrice;
-                        winnerId = id;
-                        winnerNameText = name;
                     }
                 }
             });
 
-            if (winnerId) {
-                document.getElementById(`card-${winnerId}`).classList.add('best-card');
-                document.getElementById('final-result').classList.remove('hidden');
-                document.getElementById('winner-name').innerText = winnerNameText;
-                document.getElementById('winner-price').innerText = bestPrice.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 4});
+            // 2. ตรวจสอบว่ามีกี่รายการที่ราคาเท่ากับราคาที่ถูกที่สุด
+            cards.forEach(card => {
+                const id = card.id.split('-')[1];
+                const price = parseFloat(document.getElementById(`price-${id}`).value);
+                const qty = parseFloat(document.getElementById(`qty-${id}`).value);
+                
+                if (price > 0 && qty > 0) {
+                    const unitPrice = parseFloat((price / qty).toFixed(4));
+                    if (unitPrice === bestPrice) {
+                        winners.push(id);
+                    }
+                }
+            });
+
+            // 3. แสดงผล
+            if (winners.length > 0) {
+                const finalResult = document.getElementById('final-result');
+                const winnerName = document.getElementById('winner-name');
+                const winnerPrice = document.getElementById('winner-price');
+                const resultPanel = finalResult.firstElementChild;
+
+                finalResult.classList.remove('hidden');
+                winnerPrice.innerText = bestPrice.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 4});
+
+                if (winners.length > 1) {
+                    // กรณีมีตัวที่ราคาเท่ากัน
+                    winners.forEach(id => document.getElementById(`card-${id}`).classList.add('best-card'));
+                    winnerName.innerText = "มีรายการที่ราคาเท่ากัน!";
+                    resultPanel.className = "bg-amber-500 text-white p-5 rounded-3xl shadow-xl text-center transition-all"; // เปลี่ยนเป็นสีส้มแจ้งเตือน
+                } else {
+                    // กรณีมีผู้ชนะตัวเดียว
+                    document.getElementById(`card-${winners[0]}`).classList.add('best-card');
+                    const name = document.getElementById(`name-${winners[0]}`).value || `สินค้าที่ ${winners[0]}`;
+                    winnerName.innerText = name;
+                    resultPanel.className = "bg-green-600 text-white p-5 rounded-3xl shadow-xl text-center transition-all"; // สีเขียวปกติ
+                }
                 
                 window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
             }
         }
-
-        // เริ่มต้น
-        addProduct();
-        addProduct();
-    </script>
-</body>
-</html>
-
