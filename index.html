@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Price Compare</title>
+    <title>Price Compare Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
     <script>
@@ -16,6 +16,11 @@
         input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         .btn-active:active { transform: scale(0.95); opacity: 0.9; }
         .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+        
+        /* สไตล์สำหรับแถบเปรียบเทียบราคา */
+        .price-bar-container { height: 6px; width: 100%; background: #e2e8f0; border-radius: 10px; margin-top: 10px; overflow: hidden; display: none; }
+        .dark .price-bar-container { background: #334155; }
+        .price-bar-fill { height: 100%; width: 0%; transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.3s; }
     </style>
 </head>
 <body class="bg-slate-50 dark:bg-slate-900 min-h-screen transition-colors duration-300">
@@ -40,7 +45,7 @@
         <div id="product-container" class="space-y-4"></div>
 
         <div id="final-result" class="hidden mt-8 animate-in fade-in slide-in-from-bottom-4">
-            <div id="advice-panel" class="hidden mb-4 p-4 rounded-2xl bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 text-sm font-bold text-center">
+            <div id="advice-panel" class="hidden mb-4 p-4 rounded-2xl bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 text-sm font-bold text-center italic">
                 <span id="advice-text"></span>
             </div>
             
@@ -73,6 +78,11 @@
             en: { subtitle: "Unit Price Comparison", reset: "Clear All", reset_conf: "Clear all data?", add: "+ Add", calc: "Calculate", price: "Price (฿)", qty: "Qty", unit: "Unit", avg_unit: "Avg:", avg_summary: "Avg/Unit", best: "🏆 Best Value", tie: "⚖️ Equal Value", item_placeholder: "Item ", unit_pcs: "pcs", advice_equal: "💡 Same quantity! Pick the cheaper one to save " }
         };
 
+        // ฟังก์ชันสั่นเครื่อง
+        function vibrate(ms = 20) {
+            if (navigator.vibrate) navigator.vibrate(ms);
+        }
+
         function setLanguage(lang) {
             currentLang = lang;
             localStorage.setItem('lang', lang);
@@ -98,6 +108,7 @@
             } else {
                 html.classList.add('dark'); icon.innerText = "☀️"; localStorage.setItem('theme', 'dark');
             }
+            vibrate(10);
         }
 
         if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
@@ -105,6 +116,7 @@
         }
 
         function addProduct() {
+            vibrate(15);
             productCount++;
             const t = i18n[currentLang];
             const container = document.getElementById('product-container');
@@ -119,33 +131,38 @@
                 <div class="grid grid-cols-12 gap-2">
                     <div class="col-span-12 bg-slate-50 dark:bg-slate-900/50 p-3 rounded-2xl">
                         <label class="block text-[10px] text-slate-400 font-bold mb-1 uppercase">${t.price}</label>
-                        <input type="number" inputmode="decimal" placeholder="0.00" class="w-full bg-transparent outline-none text-xl font-bold dark:text-white item-input" id="price-${productCount}">
+                        <input type="number" inputmode="decimal" placeholder="0.00" class="w-full bg-transparent outline-none text-xl font-bold dark:text-white" id="price-${productCount}">
                     </div>
                     <div class="col-span-7 bg-slate-50 dark:bg-slate-900/50 p-3 rounded-2xl">
                         <label class="block text-[10px] text-slate-400 font-bold mb-1 uppercase">${t.qty}</label>
-                        <input type="number" inputmode="decimal" placeholder="1" class="w-full bg-transparent outline-none text-xl font-bold dark:text-white item-input" id="qty-${productCount}">
+                        <input type="number" inputmode="decimal" placeholder="1" class="w-full bg-transparent outline-none text-xl font-bold dark:text-white" id="qty-${productCount}">
                     </div>
                     <div class="col-span-5 bg-slate-50 dark:bg-slate-900/50 p-3 rounded-2xl">
                         <label class="block text-[10px] text-slate-400 font-bold mb-1 uppercase">${t.unit}</label>
-                        <select class="w-full bg-transparent outline-none font-bold dark:text-white h-7 mt-1 item-input" id="unit-${productCount}">
+                        <select class="w-full bg-transparent outline-none font-bold dark:text-white h-7 mt-1" id="unit-${productCount}">
                             <option value="pcs">${t.unit_pcs}</option><option value="g">g</option><option value="kg">kg</option><option value="ml">ml</option><option value="l">L</option>
                         </select>
                     </div>
                 </div>
-                <div id="unit-display-${productCount}" class="mt-2 text-right hidden text-blue-600 dark:text-blue-400 font-bold text-sm">
-                    <span class="text-[10px] opacity-60 uppercase mr-1">${t.avg_unit}</span>
-                    <span id="unit-val-${productCount}">0.00</span>
+                <div id="unit-display-${productCount}" class="mt-4 hidden">
+                    <div class="flex justify-between items-end mb-1">
+                        <span class="text-[10px] text-slate-400 font-bold uppercase">${t.avg_unit}</span>
+                        <span id="unit-val-${productCount}" class="text-sm font-bold text-blue-600 dark:text-blue-400">0.00</span>
+                    </div>
+                    <div class="price-bar-container"><div id="bar-${productCount}" class="price-bar-fill"></div></div>
                 </div>
             `;
             container.appendChild(div);
         }
 
-        function removeProduct(id) { document.getElementById(`card-${id}`).remove(); calculateAll(); }
-        function resetAll() { if(confirm(i18n[currentLang].reset_conf)) { document.getElementById('product-container').innerHTML = ''; document.getElementById('final-result').classList.add('hidden'); productCount = 0; addProduct(); addProduct(); } }
+        function removeProduct(id) { vibrate(5); document.getElementById(`card-${id}`).remove(); calculateAll(); }
+        function resetAll() { if(confirm(i18n[currentLang].reset_conf)) { vibrate(40); document.getElementById('product-container').innerHTML = ''; document.getElementById('final-result').classList.add('hidden'); productCount = 0; addProduct(); addProduct(); } }
 
         function calculateAll() {
+            vibrate(30);
             let products = [];
             let bestPrice = Infinity;
+            let maxPrice = 0;
             let winners = [];
             const cards = document.querySelectorAll('.product-card');
             
@@ -166,15 +183,16 @@
                     
                     document.getElementById(`unit-val-${id}`).innerText = unitPrice.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 4}) + unitLabel;
                     document.getElementById(`unit-display-${id}`).classList.remove('hidden');
+                    document.querySelector(`#card-${id} .price-bar-container`).style.display = 'block';
                     
                     products.push({ id, price, qty, unit, unitPrice });
                     if (unitPrice < bestPrice) bestPrice = unitPrice;
+                    if (unitPrice > maxPrice) maxPrice = unitPrice;
                 }
             });
 
-            // ตรวจสอบชิ้นที่เท่ากันแต่ราคาต่างกัน
+            // ตรวจสอบราคาเท่ากันแต่ประหยัดกว่า
             if (products.length >= 2) {
-                // ตัวอย่างเช็คคู่แรกที่มีปริมาณและหน่วยเท่ากันเป๊ะ
                 for (let i = 0; i < products.length; i++) {
                     for (let j = i + 1; j < products.length; j++) {
                         if (products[i].qty === products[j].qty && products[i].unit === products[j].unit && products[i].price !== products[j].price) {
@@ -186,7 +204,13 @@
                 }
             }
 
+            // อัปเดต Progress Bar
             products.forEach(p => {
+                const bar = document.getElementById(`bar-${p.id}`);
+                // คำนวณความยาวแถบ: อันที่ถูกที่สุดจะเป็น % ที่น้อยที่สุด (สมมติเริ่มที่ 30% เพื่อให้เห็นแถบ)
+                const percentage = (p.unitPrice / maxPrice) * 100;
+                bar.style.width = percentage + "%";
+                bar.className = (p.unitPrice === bestPrice) ? "price-bar-fill bg-green-500" : "price-bar-fill bg-blue-500";
                 if (p.unitPrice === bestPrice) winners.push(p.id);
             });
 
