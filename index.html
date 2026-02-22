@@ -16,11 +16,17 @@
         input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         .btn-active:active { transform: scale(0.95); opacity: 0.9; }
         .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
-        
-        /* สไตล์สำหรับแถบเปรียบเทียบราคา */
         .price-bar-container { height: 6px; width: 100%; background: #e2e8f0; border-radius: 10px; margin-top: 10px; overflow: hidden; display: none; }
         .dark .price-bar-container { background: #334155; }
-        .price-bar-fill { height: 100%; width: 0%; transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.3s; }
+        .price-bar-fill { height: 100%; width: 0%; transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1); }
+        
+        /* สไตล์ Error */
+        .error-shake { animation: shake 0.4s ease-in-out; border-color: #ef4444 !important; }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
     </style>
 </head>
 <body class="bg-slate-50 dark:bg-slate-900 min-h-screen transition-colors duration-300">
@@ -40,15 +46,18 @@
     </div>
 
     <div class="max-w-md mx-auto p-4 pb-52">
+        <div id="unit-error" class="hidden mb-4 p-4 rounded-2xl bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-sm font-bold flex items-center gap-2 animate-bounce">
+            ⚠️ <span id="error-message"></span>
+        </div>
+
         <p id="text-subtitle" class="text-xs text-blue-600 dark:text-blue-400 font-medium mb-6 uppercase tracking-wider">เปรียบเทียบความคุ้มค่าต่อหน่วย</p>
 
         <div id="product-container" class="space-y-4"></div>
 
-        <div id="final-result" class="hidden mt-8 animate-in fade-in slide-in-from-bottom-4">
+        <div id="final-result" class="hidden mt-8">
             <div id="advice-panel" class="hidden mb-4 p-4 rounded-2xl bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 text-sm font-bold text-center italic">
                 <span id="advice-text"></span>
             </div>
-            
             <div id="result-badge" class="p-8 rounded-[2.5rem] shadow-xl text-center text-white transition-all">
                 <p id="result-status" class="text-[10px] uppercase tracking-widest opacity-80 mb-2 font-black"></p>
                 <h2 id="winner-name" class="text-xl font-bold mb-2 leading-tight">-</h2>
@@ -64,7 +73,7 @@
             </div>
             <div class="flex gap-3">
                 <button onclick="addProduct()" id="text-add" class="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-white font-bold py-4 rounded-2xl btn-active transition-all">+ เพิ่ม</button>
-                <button onclick="calculateAll()" id="text-calc" class="flex-[2] bg-blue-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-blue-200 dark:shadow-none btn-active transition-all">คำนวณเลย</button>
+                <button onclick="calculateAll()" id="text-calc" class="flex-[2] bg-blue-600 text-white font-bold py-4 rounded-2xl shadow-lg btn-active transition-all">คำนวณเลย</button>
             </div>
         </div>
     </div>
@@ -74,14 +83,11 @@
         let currentLang = localStorage.getItem('lang') || 'th';
 
         const i18n = {
-            th: { subtitle: "เปรียบเทียบความคุ้มค่าต่อหน่วย", reset: "ล้างทั้งหมด", reset_conf: "ล้างข้อมูลทั้งหมด?", add: "+ เพิ่ม", calc: "คำนวณเลย", price: "ราคา (฿)", qty: "ปริมาณ", unit: "หน่วย", avg_unit: "เฉลี่ย:", avg_summary: "เฉลี่ยหน่วยละ", best: "🏆 คุ้มที่สุด", tie: "⚖️ ราคาเท่ากัน", item_placeholder: "รายการที่ ", unit_pcs: "ชิ้น", advice_equal: "💡 ปริมาณเท่ากัน! ซื้ออันที่ถูกกว่า ประหยัดไปได้ " },
-            en: { subtitle: "Unit Price Comparison", reset: "Clear All", reset_conf: "Clear all data?", add: "+ Add", calc: "Calculate", price: "Price (฿)", qty: "Qty", unit: "Unit", avg_unit: "Avg:", avg_summary: "Avg/Unit", best: "🏆 Best Value", tie: "⚖️ Equal Value", item_placeholder: "Item ", unit_pcs: "pcs", advice_equal: "💡 Same quantity! Pick the cheaper one to save " }
+            th: { error_unit: "หน่วยไม่ตรงกัน! กรุณาเลือกหน่วยที่เป็นประเภทเดียวกัน (เช่น น้ำหนักกับน้ำหนัก)", subtitle: "เปรียบเทียบความคุ้มค่าต่อหน่วย", reset: "ล้างทั้งหมด", reset_conf: "ล้างข้อมูลทั้งหมด?", add: "+ เพิ่ม", calc: "คำนวณเลย", price: "ราคา (฿)", qty: "ปริมาณ", unit: "หน่วย", avg_unit: "เฉลี่ย:", avg_summary: "เฉลี่ยหน่วยละ", best: "🏆 คุ้มที่สุด", tie: "⚖️ ราคาเท่ากัน", item_placeholder: "รายการที่ ", unit_pcs: "ชิ้น", advice_equal: "💡 ปริมาณเท่ากัน! ประหยัดไป " },
+            en: { error_unit: "Units mismatch! Please select compatible units (e.g., Weight vs Weight)", subtitle: "Unit Price Comparison", reset: "Clear All", reset_conf: "Clear all data?", add: "+ Add", calc: "Calculate", price: "Price (฿)", qty: "Qty", unit: "Unit", avg_unit: "Avg:", avg_summary: "Avg/Unit", best: "🏆 Best Value", tie: "⚖️ Equal Value", item_placeholder: "Item ", unit_pcs: "pcs", advice_equal: "💡 Same quantity! You save " }
         };
 
-        // ฟังก์ชันสั่นเครื่อง
-        function vibrate(ms = 20) {
-            if (navigator.vibrate) navigator.vibrate(ms);
-        }
+        function vibrate(ms = 20) { if (navigator.vibrate) navigator.vibrate(ms); }
 
         function setLanguage(lang) {
             currentLang = lang;
@@ -129,15 +135,15 @@
                     <button onclick="removeProduct(${productCount})" class="text-slate-300 dark:text-slate-600 p-2">✕</button>
                 </div>
                 <div class="grid grid-cols-12 gap-2">
-                    <div class="col-span-12 bg-slate-50 dark:bg-slate-900/50 p-3 rounded-2xl">
+                    <div class="col-span-12 bg-slate-50 dark:bg-slate-900/50 p-3 rounded-2xl border border-transparent">
                         <label class="block text-[10px] text-slate-400 font-bold mb-1 uppercase">${t.price}</label>
                         <input type="number" inputmode="decimal" placeholder="0.00" class="w-full bg-transparent outline-none text-xl font-bold dark:text-white" id="price-${productCount}">
                     </div>
-                    <div class="col-span-7 bg-slate-50 dark:bg-slate-900/50 p-3 rounded-2xl">
+                    <div class="col-span-7 bg-slate-50 dark:bg-slate-900/50 p-3 rounded-2xl border border-transparent">
                         <label class="block text-[10px] text-slate-400 font-bold mb-1 uppercase">${t.qty}</label>
                         <input type="number" inputmode="decimal" placeholder="1" class="w-full bg-transparent outline-none text-xl font-bold dark:text-white" id="qty-${productCount}">
                     </div>
-                    <div class="col-span-5 bg-slate-50 dark:bg-slate-900/50 p-3 rounded-2xl">
+                    <div class="col-span-5 bg-slate-50 dark:bg-slate-900/50 p-3 rounded-2xl border border-transparent">
                         <label class="block text-[10px] text-slate-400 font-bold mb-1 uppercase">${t.unit}</label>
                         <select class="w-full bg-transparent outline-none font-bold dark:text-white h-7 mt-1" id="unit-${productCount}">
                             <option value="pcs">${t.unit_pcs}</option><option value="g">g</option><option value="kg">kg</option><option value="ml">ml</option><option value="l">L</option>
@@ -156,16 +162,18 @@
         }
 
         function removeProduct(id) { vibrate(5); document.getElementById(`card-${id}`).remove(); calculateAll(); }
-        function resetAll() { if(confirm(i18n[currentLang].reset_conf)) { vibrate(40); document.getElementById('product-container').innerHTML = ''; document.getElementById('final-result').classList.add('hidden'); productCount = 0; addProduct(); addProduct(); } }
+        function resetAll() { if(confirm(i18n[currentLang].reset_conf)) { vibrate(40); document.getElementById('product-container').innerHTML = ''; document.getElementById('final-result').classList.add('hidden'); document.getElementById('unit-error').classList.add('hidden'); productCount = 0; addProduct(); addProduct(); } }
 
         function calculateAll() {
-            vibrate(30);
             let products = [];
             let bestPrice = Infinity;
             let maxPrice = 0;
             let winners = [];
+            let unitGroups = new Set();
             const cards = document.querySelectorAll('.product-card');
+            const errorDiv = document.getElementById('unit-error');
             
+            errorDiv.classList.add('hidden');
             document.getElementById('advice-panel').classList.add('hidden');
 
             cards.forEach(card => {
@@ -173,66 +181,64 @@
                 const price = parseFloat(document.getElementById(`price-${id}`).value);
                 const qty = parseFloat(document.getElementById(`qty-${id}`).value);
                 const unit = document.getElementById(`unit-${id}`).value;
-                card.classList.remove('best-card');
+                
+                card.classList.remove('best-card', 'error-shake');
                 document.getElementById(`unit-display-${id}`).classList.add('hidden');
 
                 if (price > 0 && qty > 0) {
+                    // กำหนดกลุ่มหน่วย: 1 = นับชิ้น, 2 = วัดน้ำหนัก/ปริมาตร
+                    const group = (unit === 'pcs') ? 'count' : 'measure';
+                    unitGroups.add(group);
+                    
                     let baseQty = (unit === 'kg' || unit === 'l') ? qty * 1000 : qty;
                     const unitPrice = parseFloat((price / baseQty).toFixed(6));
-                    const unitLabel = unit === 'pcs' ? ' ฿/' + i18n[currentLang].unit_pcs : (unit === 'g' || unit === 'kg' ? ' ฿/g' : ' ฿/ml');
-                    
-                    document.getElementById(`unit-val-${id}`).innerText = unitPrice.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 4}) + unitLabel;
-                    document.getElementById(`unit-display-${id}`).classList.remove('hidden');
-                    document.querySelector(`#card-${id} .price-bar-container`).style.display = 'block';
-                    
                     products.push({ id, price, qty, unit, unitPrice });
                     if (unitPrice < bestPrice) bestPrice = unitPrice;
                     if (unitPrice > maxPrice) maxPrice = unitPrice;
                 }
             });
 
-            // ตรวจสอบราคาเท่ากันแต่ประหยัดกว่า
-            if (products.length >= 2) {
-                for (let i = 0; i < products.length; i++) {
-                    for (let j = i + 1; j < products.length; j++) {
-                        if (products[i].qty === products[j].qty && products[i].unit === products[j].unit && products[i].price !== products[j].price) {
-                            const diff = Math.abs(products[i].price - products[j].price);
-                            document.getElementById('advice-panel').classList.remove('hidden');
-                            document.getElementById('advice-text').innerText = i18n[currentLang].advice_equal + diff.toLocaleString() + " ฿";
-                        }
-                    }
-                }
+            // ตรวจสอบความเข้ากันได้ของหน่วย
+            if (unitGroups.size > 1) {
+                vibrate([50, 50, 50]);
+                errorDiv.classList.remove('hidden');
+                document.getElementById('error-message').innerText = i18n[currentLang].error_unit;
+                document.getElementById('final-result').classList.add('hidden');
+                cards.forEach(c => c.classList.add('error-shake'));
+                return; // หยุดทำงาน
             }
 
-            // อัปเดต Progress Bar
+            vibrate(30);
             products.forEach(p => {
-                const bar = document.getElementById(`bar-${p.id}`);
-                // คำนวณความยาวแถบ: อันที่ถูกที่สุดจะเป็น % ที่น้อยที่สุด (สมมติเริ่มที่ 30% เพื่อให้เห็นแถบ)
+                const id = p.id;
+                const unitLabel = p.unit === 'pcs' ? ' ฿/' + i18n[currentLang].unit_pcs : (p.unit === 'g' || p.unit === 'kg' ? ' ฿/g' : ' ฿/ml');
+                document.getElementById(`unit-val-${id}`).innerText = p.unitPrice.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 4}) + unitLabel;
+                document.getElementById(`unit-display-${id}`).classList.remove('hidden');
+                document.querySelector(`#card-${id} .price-bar-container`).style.display = 'block';
+
+                const bar = document.getElementById(`bar-${id}`);
                 const percentage = (p.unitPrice / maxPrice) * 100;
                 bar.style.width = percentage + "%";
                 bar.className = (p.unitPrice === bestPrice) ? "price-bar-fill bg-green-500" : "price-bar-fill bg-blue-500";
-                if (p.unitPrice === bestPrice) winners.push(p.id);
+                if (p.unitPrice === bestPrice) winners.push(id);
             });
 
             if (winners.length > 0) {
                 const resDiv = document.getElementById('final-result');
                 resDiv.classList.remove('hidden');
                 const t = i18n[currentLang];
-                const winnerUnit = document.getElementById(`unit-${winners[0]}`).value;
-                const finalUnitLabel = winnerUnit === 'pcs' ? ' ฿/' + t.unit_pcs : (winnerUnit === 'g' || winnerUnit === 'kg' ? ' ฿/g' : ' ฿/ml');
-                
-                document.getElementById('winner-price').innerText = bestPrice.toLocaleString(undefined, {maximumFractionDigits: 4}) + finalUnitLabel;
+                document.getElementById('winner-price').innerText = bestPrice.toLocaleString(undefined, {maximumFractionDigits: 4});
                 
                 if (winners.length > 1) {
-                    let names = winners.map(id => document.getElementById(`name-${id}`).value || i18n[currentLang].item_placeholder + id);
+                    let names = winners.map(id => document.getElementById(`name-${id}`).value || t.item_placeholder + id);
                     winners.forEach(id => document.getElementById(`card-${id}`).classList.add('best-card'));
-                    document.getElementById('result-status').innerText = i18n[currentLang].tie;
+                    document.getElementById('result-status').innerText = t.tie;
                     document.getElementById('winner-name').innerText = names.join(" & ");
                     document.getElementById('result-badge').className = "p-8 rounded-[2.5rem] shadow-xl text-center text-white bg-slate-800 dark:bg-slate-700";
                 } else {
                     document.getElementById(`card-${winners[0]}`).classList.add('best-card');
-                    document.getElementById('result-status').innerText = i18n[currentLang].best;
-                    document.getElementById('winner-name').innerText = document.getElementById(`name-${winners[0]}`).value || i18n[currentLang].item_placeholder + winners[0];
+                    document.getElementById('result-status').innerText = t.best;
+                    document.getElementById('winner-name').innerText = document.getElementById(`name-${winners[0]}`).value || t.item_placeholder + winners[0];
                     document.getElementById('result-badge').className = "p-8 rounded-[2.5rem] shadow-xl text-center text-white bg-green-600";
                 }
                 resDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
